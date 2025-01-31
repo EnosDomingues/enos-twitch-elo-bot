@@ -12,6 +12,7 @@ interface EnvConfig {
     SUMMONER_ID: string;
     CLIENT_ID: string;
     SECRET_ID: string;
+    TWITCH_CHANNEL_ID: string;
 }
 
 const {
@@ -19,19 +20,51 @@ const {
     BOT_OAUTH_TOKEN,
     TWITCH_CHANNEL,
     RIOT_API_KEY,
-    SUMMONER_ID
+    SUMMONER_ID,
+    CLIENT_ID,
+    TWITCH_CHANNEL_ID
 } = process.env as unknown as EnvConfig;
 
 const client = new tmi.Client({
     options: { debug: true },
     identity: {
         username: BOT_NAME,
-        password: BOT_OAUTH_TOKEN
+        password: `oauth:${BOT_OAUTH_TOKEN}`
     },
     channels: [ TWITCH_CHANNEL ]
 });
 
 client.connect().catch(console.error);
+
+let lastKnownFollowerId = '';
+
+async function checkForNewFollowers() {
+    try {
+        const response = await axios.get(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${encodeURIComponent(TWITCH_CHANNEL_ID)}&first=1`, {
+            headers: {
+                'Authorization': `Bearer ${BOT_OAUTH_TOKEN}`,
+                'Client-Id': CLIENT_ID
+            }
+        });
+
+        if (response.data.data.length > 0) {
+            const latestFollower = response.data.data[0];
+            
+            if (latestFollower.user_id !== lastKnownFollowerId) {
+                client.say(TWITCH_CHANNEL, `Obrigada por seguir o canal, ${latestFollower.user_name}! Seja bem-vindo(a)! 💎`);
+                lastKnownFollowerId = latestFollower.user_id;
+            } else {
+                console.log('Nenhum novo seguidor desde a última verificação.');
+            }
+        } else {
+            console.log('Nenhum seguidor encontrado.');
+        }
+    } catch (error) {
+        console.error('Erro ao verificar novos seguidores:', error);
+    }
+}
+
+setInterval(checkForNewFollowers, 10000);
 
 client.on('message', async (channel, tags, message, self) => {
     if (self) return;
