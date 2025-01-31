@@ -15,6 +15,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const tmi_js_1 = __importDefault(require("tmi.js"));
 const axios_1 = __importDefault(require("axios"));
 const dotenv_1 = __importDefault(require("dotenv"));
+const messages_1 = require("./utils/messages");
 dotenv_1.default.config();
 const { BOT_NAME, BOT_OAUTH_TOKEN, TWITCH_CHANNEL, RIOT_API_KEY, SUMMONER_ID, CLIENT_ID, TWITCH_CHANNEL_ID } = process.env;
 const client = new tmi_js_1.default.Client({
@@ -38,10 +39,10 @@ function checkForNewFollowers() {
             });
             if (response.data.data.length > 0) {
                 const latestFollower = response.data.data[0];
-                // Verifica se este é um novo seguidor
                 if (latestFollower.user_id !== lastKnownFollowerId) {
-                    client.say(TWITCH_CHANNEL, `Obrigada por seguir o canal, ${latestFollower.user_name}! Seja bem-vindo(a)! 💎`);
-                    // Atualiza o ID do último seguidor conhecido
+                    const randomWelcomeMessage = messages_1.welcomeMessages[Math.floor(Math.random() * messages_1.welcomeMessages.length)];
+                    const welcomeMessage = randomWelcomeMessage.replace('[USERNAME]', `@${latestFollower.user_name}`);
+                    client.say(TWITCH_CHANNEL, welcomeMessage);
                     lastKnownFollowerId = latestFollower.user_id;
                 }
                 else {
@@ -62,7 +63,7 @@ client.on('message', (channel, tags, message, self) => __awaiter(void 0, void 0,
     if (self)
         return;
     if (message.toLowerCase() === '!hello') {
-        client.say(channel, `@${tags.username}, heya!`);
+        client.say(channel, `@${tags.username || 'Anônimo'}, heya!`);
     }
     else if (message.toLowerCase() === '!elo') {
         try {
@@ -77,15 +78,22 @@ client.on('message', (channel, tags, message, self) => __awaiter(void 0, void 0,
             });
             if (response.data.length > 0) {
                 const rankInfo = response.data[0];
-                client.say(channel, `@${tags.username}, o elo atual é: ${rankInfo.tier} ${rankInfo.rank}`);
+                const randomEloMessage = messages_1.eloMessages[Math.floor(Math.random() * messages_1.eloMessages.length)];
+                let username = tags.username || 'Anônimo';
+                let eloMessage = randomEloMessage.replace('@[USERNAME]', username);
+                eloMessage = eloMessage.replace('[TIER]', rankInfo.tier);
+                eloMessage = eloMessage.replace('[RANK]', rankInfo.rank);
+                client.say(channel, eloMessage);
             }
             else {
-                client.say(channel, `@${tags.username}, não classificado no momento.`);
+                let username = tags.username || 'Anônimo';
+                client.say(channel, `@${username}, não classificado no momento.`);
             }
         }
         catch (error) {
             console.error('Erro ao obter o elo:', error);
-            client.say(channel, `@${tags.username}, desculpe, não consegui obter o elo no momento.`);
+            let username = tags.username || 'Anônimo';
+            client.say(channel, `@${username}, desculpe, não consegui obter o elo no momento.`);
         }
     }
 }));

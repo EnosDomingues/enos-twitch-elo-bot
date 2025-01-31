@@ -1,6 +1,7 @@
 import tmi from "tmi.js";
 import axios from "axios";
 import dotenv from 'dotenv';
+import { eloMessages, welcomeMessages } from "./utils/messages";
 
 dotenv.config();
 
@@ -38,6 +39,8 @@ client.connect().catch(console.error);
 
 let lastKnownFollowerId = '';
 
+
+
 async function checkForNewFollowers() {
     try {
         const response = await axios.get(`https://api.twitch.tv/helix/channels/followers?broadcaster_id=${encodeURIComponent(TWITCH_CHANNEL_ID)}&first=1`, {
@@ -51,7 +54,9 @@ async function checkForNewFollowers() {
             const latestFollower = response.data.data[0];
             
             if (latestFollower.user_id !== lastKnownFollowerId) {
-                client.say(TWITCH_CHANNEL, `Obrigada por seguir o canal, ${latestFollower.user_name}! Seja bem-vindo(a)! 💎`);
+                const randomWelcomeMessage = welcomeMessages[Math.floor(Math.random() * welcomeMessages.length)];
+                const welcomeMessage = randomWelcomeMessage.replace('[USERNAME]', `@${latestFollower.user_name}`);
+                client.say(TWITCH_CHANNEL, welcomeMessage);
                 lastKnownFollowerId = latestFollower.user_id;
             } else {
                 console.log('Nenhum novo seguidor desde a última verificação.');
@@ -70,7 +75,7 @@ client.on('message', async (channel, tags, message, self) => {
     if (self) return;
 
     if (message.toLowerCase() === '!hello') {
-        client.say(channel, `@${tags.username}, heya!`);
+        client.say(channel, `@${tags.username || 'Anônimo'}, heya!`);
     } else if (message.toLowerCase() === '!elo') {
         try {
             const response = await axios.get(`https://br1.api.riotgames.com/lol/league/v4/entries/by-summoner/${SUMMONER_ID}`, {
@@ -85,13 +90,20 @@ client.on('message', async (channel, tags, message, self) => {
 
             if (response.data.length > 0) {
                 const rankInfo = response.data[0];
-                client.say(channel, `@${tags.username}, o elo atual é: ${rankInfo.tier} ${rankInfo.rank}`);
+                const randomEloMessage = eloMessages[Math.floor(Math.random() * eloMessages.length)];
+                let username = tags.username || 'Anônimo';
+                let eloMessage = randomEloMessage.replace('@[USERNAME]', username);
+                eloMessage = eloMessage.replace('[TIER]', rankInfo.tier);
+                eloMessage = eloMessage.replace('[RANK]', rankInfo.rank);
+                client.say(channel, eloMessage);
             } else {
-                client.say(channel, `@${tags.username}, não classificado no momento.`);
+                let username = tags.username || 'Anônimo';
+                client.say(channel, `@${username}, não classificado no momento.`);
             }
         } catch (error) {
             console.error('Erro ao obter o elo:', error);
-            client.say(channel, `@${tags.username}, desculpe, não consegui obter o elo no momento.`);
+            let username = tags.username || 'Anônimo';
+            client.say(channel, `@${username}, desculpe, não consegui obter o elo no momento.`);
         }
     }
 });
