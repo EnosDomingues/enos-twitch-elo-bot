@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc && node src/index.js --watch"
+    "dev": "tsc && node src/index.js --watch",
+    "start": "electron ."
   },
   "keywords": [
     "Twitch",
